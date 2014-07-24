@@ -14,12 +14,15 @@ using namespace cv;
 	Rect currentRect;
 	int layer;// not sure 
 	Point leftUpPoint;
-	double emotionROI_ratio(Mat stimuiusMap,int min_x, int min_y, int max_x, int max_y);	
+	double emotionROIRatio(){
+		return area(currentROI) / area(maxEmotionROI);
+	}	
 	int area(Mat a){
 		return a.cols * a.rows;
 	}	
 	void move(int deltaX , int deltaY);
 	void expand(int );
+
 	void updateCandidateROI();	
 };
 
@@ -44,4 +47,18 @@ public:
 	bool emotionCategory[7];
 	void print();
 };
+=======
+};
+
+
+double blankAreaRatio(){
+	// return area(all the emotionROIs) / area(the whole image);
+}
+bool isOverlapped();
+int overlappedArea();
+void swapEmotionROI(emotionROI a , emotionROI b);
+double varianceOfEmotionROIRatio(emotionROI *p , int n );
+
+
+>>>>>>> origin/master
 #endif
