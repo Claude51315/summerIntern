@@ -22,3 +22,6 @@ bool isOverlapped();
 int overlappedArea();
 void swapEmotionROI(emotionROI a , emotionROI b);
 double varianceOfEmotionROIRatio(emotionROI *p , int n );
+
+/// HII
+
