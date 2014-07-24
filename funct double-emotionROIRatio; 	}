@@ -1,0 +1,14 @@
+double emotionROIRatio(Mat src,int min_x, int min_y, int max_x, int max_y)
+{
+	double output=0, src_score=0, cropROI_score=0;
+		
+	for(int i = 0 ; i < src.cols ; i++)
+			for(int j = 0 ; j < src.rows ; j++)
+			{
+						src_score += src.at<uchar>(j,i);
+						if(i>=min_x && i<=max_x && j<=max_y && j>=min_y)
+							cropROI_score += src.at<uchar>(j,i);
+			}			
+		output = (double)cropROI_score/src_score;
+		return output;
+}
