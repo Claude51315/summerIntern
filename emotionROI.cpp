@@ -1,5 +1,5 @@
 #include "emotionROI.h"
-bool readImage( std::fstream& emotionFiles, emotionData& output ) 
+bool readImage( std::fstream& emotionFiles, emotionData& output , int number) 
 {
 	string text , emotionString , fileString = "Emotion6/" , imageString;
 	// fileString =  "Emotion6/" + emotionString + imageString
@@ -14,7 +14,7 @@ bool readImage( std::fstream& emotionFiles, emotionData& output )
 	{
 		emotionFiles >> text;
 		
-		std::cout<<text<<std::endl;
+		//std::cout<<text<<std::endl;
 
 		x = text.find_first_of('/');
 		emotionString = text.substr(0,x);
@@ -24,8 +24,10 @@ bool readImage( std::fstream& emotionFiles, emotionData& output )
 		fileString += imageString;
 		if(n==0)
 		{
+
 			src = imread(fileString,1);
 			output.originImage  = src.clone();
+			output.number = number;
 		}	
 		emotionFiles >> ROI_xmin >> ROI_xmax >> ROI_ymin >> ROI_ymax;
 		// foo
@@ -57,7 +59,6 @@ bool readImage( std::fstream& emotionFiles, emotionData& output )
 			//std::cout<<" read data : "<<t<<std::endl;
 			//int emotionkeywd = findKeyword(emotionString);
 			Mat  tmpROI,binary (src.rows , src.cols , CV_8U ,Scalar(0)),a;
-			std::cout<<"QQ"<<std::endl;
 			for(int i = 0 ;i<15;i++)
 			{
 				tmpROI.create(data[i].emotionRect.height , data[i].emotionRect.width , CV_8U);
@@ -115,4 +116,80 @@ void emotionData::updateCandidateROI()
 						candidateROI.push_back(	originImage(crop).clone());
 				}
 			}
+}
+void emotionData::initialize()
+{
+	this->layer = 0;
+	this->level = 0;
+	
+}
+void randomLeftUpPoint(emotionData src[], int numOfSource , int canvasWidth , int canvasHeight)
+{
+	srand(time(NULL));
+	
+	Mat check_src(canvasHeight,canvasWidth,CV_8U,Scalar(0));
+	//check_src.setTo(0);
+	std::cout<<check_src.cols<<std::endl;
+	std::cout<<check_src.rows<<std::endl;
+			
+	for(int i = 0; i < numOfSource ; ++i)
+	{
+	
+		bool not_done = true;
+		while(not_done)
+		{
+			
+			int temp_seed_x = 0,temp_seed_y = 0;
+			temp_seed_x = (int)(rand()% canvasWidth);
+			temp_seed_y = (int)(rand()% canvasHeight); 
+			
+			if(check_src.at<uchar>(temp_seed_y,temp_seed_x)==0)
+			{
+				not_done =false;
+				check_src.at<uchar>(temp_seed_y,temp_seed_x)=1; 
+				src[i].leftUpPoint.x =temp_seed_x; 
+				src[i].leftUpPoint.y =temp_seed_y;
+			}
+		}
+	}
+	
+}
+double resizeRatio_x (emotionData src[], int numOfSource , int canvasWidth)
+{
+	double resizeRatio_x = 0 ;
+	for(int i = 0; i< numOfSource; i++)
+	{
+		resizeRatio_x += (double)src[i].candidateROI[0].cols;
+	}
+	if((double)(canvasWidth/resizeRatio_x) <1)
+		return (double)(canvasWidth/resizeRatio_x);
+	else
+		return 1;
+}
+double resizeRatio_y (emotionData src[], int numOfSource , int canvasHeight)
+{
+	double resizeRatio_y = 0;
+	for(int i = 0; i< numOfSource; i++)
+	{
+		resizeRatio_y += (double)src[i].candidateROI[0].cols;
+	}
+	if((double)(canvasHeight/resizeRatio_y) <1)
+		return (double)(canvasHeight/resizeRatio_y);
+	else
+		return 1;
+}
+
+double blankAreaRatio(Mat src)
+{
+	double output=0, src_score=0;
+		
+	for(int i = 0 ; i < src.cols ; i++)
+			for(int j = 0 ; j < src.rows ; j++)
+			{
+						if(src.at<uchar>(j,i)==0)
+						src_score++;
+						
+			}			
+		output = (double)src_score/(src.cols*src.rows);
+		return output;
 }
