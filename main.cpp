@@ -9,7 +9,7 @@ void main()
 	imageData.open("emotionROI_value.txt", std::fstream::in);
 	if(!imageData.is_open())
 	{
-		std::cerr<<"cannot open file."<<std::endl;
+		std::cerr<<"cannot open file."<<std::endl; exit(1);
 	}
 	randomSeedPoint(src, N, CANVAS_WIDTH, CANVAS_HEIGHT); // randomly choose seed point 
 	for(size_t i = 0 ; i< N ;++i)
