@@ -1,10 +1,9 @@
 #include "emotionROI.h"
-#define CANVAS_WIDTH 1024
-#define CANVAS_HEIGHT 768
-#define N 5  // number of input image 
 void main()
 {
-	Mat canvas(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8UC3 , Scalar(0,0,0));
+	Mat canvas(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8UC3 , Scalar(0,0,0)),
+		boolMap(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_32S , Scalar(0)) , 
+		block(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_32S , Scalar(2000)) ;;
 	emotionData src[N];
 	std::fstream  imageData;
 	imageData.open("emotionROI_value.txt", std::fstream::in);
@@ -12,19 +11,25 @@ void main()
 	{
 		std::cerr<<"cannot open file."<<std::endl;
 	}
+	randomSeedPoint(src, N, CANVAS_WIDTH, CANVAS_HEIGHT); // randomly choose seed point 
 	for(size_t i = 0 ; i< N ;++i)
 	{
-		readImage( imageData , src[i],i);
-		src[i].updateCandidateROI();
-		//std::cout<<src[i].candidateROI.size()<<std::endl;
-	}
+		readImage( imageData , src[i],i); // origin image , stimulus map , layer
+		src[i].initialize();
+	}	
 	imageData.close();
-	randomLeftUpPoint(src, N, CANVAS_WIDTH, CANVAS_HEIGHT);
-	Mat srcPointMap(CANVAS_HEIGHT,CANVAS_WIDTH,CV_8UC3,Scalar(0,0,0));
-	for(size_t i = 0 ; i< N ;++i)
-			std::cout << "[" << src[i].leftUpPoint.x << ", "<< src[i].leftUpPoint.y << "]" << std::endl;
-	// randomly spread seeds
-	// initialize currentRect 
-	system("pause");
+	draw(src , canvas);
+	int nn = 0 ;
+	srand(time(NULL));
+	while(1)
+	{
+		for(int i = 0 ;i< N ;i++)
+			src[i].move(canvas,rand()%40-20,rand()%40-20);
+		
+		nn +=10;
+		draw(src , canvas);
+		imshow("qq", canvas);
+		waitKey(0);
+	}
 	
 }

@@ -6,30 +6,61 @@
 #include<fstream>
 #include<string>
 #include<time.h>
-using namespace cv;
-	class emotionData {
-	public:
-	Mat originImage , currentROI , stimulusMap;
-	vector<Mat> candidateROI;
 
+#define CANVAS_WIDTH 1024
+#define CANVAS_HEIGHT 768
+#define N 5  // number of input image 
+
+using namespace cv;
+#define upAdjacent 100
+#define downAdjacent 101
+#define leftAdjacent 102
+#define rightAdjacent 103
+
+class emotionData {
+	public:
+	Mat originImage  , stimulusMap;
+	vector<Mat> candidateROI;
 	Rect currentRect;
 	int layer;// not sure 
-	int number , level;
-	Point leftUpPoint;
-	/*
-		for
+	int level;
+	/*!
+	0 : top left
+	1 : top right
+	2 : bottom left
+	3 : bottom right
 	*/
+	Point seed , corners[4];
 	double emotionROI_ratio(Mat stimuiusMap,int min_x, int min_y, int max_x, int max_y);	
-	void move(int deltaX , int deltaY);
 	/*
-		initialize the remaining class member 
+		move the currentRect and update seed point , corners 
+	*/
+	void move(Mat &canvas , int deltaX , int deltaY);
+	/*
+		initialize the class members
+		level 
+		updateCandidateROI(); 
+		updateCurrentRect(); // choose candidateROI[layer] 
+		updateCorners();  // update the remaining three corners 
 	*/
 	void initialize();
-	bool expand();
 	void updateCandidateROI();	
+	/*
+		need CurrentRect to be correct ; 
+	*/
+	void updateCorners();
+	/*
+		need seed point , i.e. corner[0]  and layer to be correct ; 
+		border detection !
+	*/
+	void updateCurrentRect();	
+	Mat getAdjacentBlankArea(Mat& boolMap , int side);
+	
 };
-
-void randomLeftUpPoint(emotionData src[], int numOfSource , int canvasWidth, int canvasHeight);
+/*!
+	randomly assign a point to seed point ,i.e. top left corner to all input images.
+*/
+void randomSeedPoint(emotionData src[], int numOfSource , int canvasWidth, int canvasHeight);
 double blankAreaRatio(Mat src);
 double resizeRatio_x (emotionData src[], int numOfSource, int canvasWidth);
 double resizeRatio_y (emotionData src[], int numOfSource, int canvasHeight);
@@ -38,12 +69,9 @@ double resizeRatio_y (emotionData src[], int numOfSource, int canvasHeight);
 //void swapEmotionROI(emotionROI a , emotionROI b);
 //double varianceOfEmotionROIRatio(emotionROI *p , int n );
 
-/*!
-initialize 
-load in origin image and stimulus map only !
-number means n-th-input
-set level to be zero 
-*/
+void draw(emotionData *src , Mat &canvas);
+
+
 bool readImage( std::fstream& emotionFiles, emotionData& output  , int number ); 
 class emotionROI  //  for reading images
 {
