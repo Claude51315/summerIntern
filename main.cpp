@@ -11,6 +11,7 @@ void main()
 	if(!imageData.is_open())
 	{
 		std::cerr<<"cannot open file."<<std::endl;
+		 exit(1);
 	}
 	
 	randomSeedPoint(src, N, CANVAS_WIDTH, CANVAS_HEIGHT); // randomly choose seed point 
