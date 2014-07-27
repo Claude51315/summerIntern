@@ -83,23 +83,58 @@ void emotionData::updateCurrentRect()
 	}
 	currentRect = Rect(corners[0].x ,corners[0].y , range_x , range_y);
 }	
-Mat emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
-{
 
+Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
+{
 	Mat tmp;
 	switch(side)
 	{
-		case upAdjacent:
+	case upAdjacent:
+		{
+			Rect tmpRect  = currentRect + Point(0 , - currentRect.height);
+			if(tmpRect.y < 0)
+			{
+				tmpRect.height += tmpRect.y;
+				tmpRect.y = 0;
+			}
+			return tmpRect;
+		}
 		break;
 		case downAdjacent:
+		{
+		
+			Rect tmpRect  = currentRect + Point(0 , currentRect.height);
+			if(tmpRect.y  + tmpRect.height >= CANVAS_HEIGHT-1)
+			{
+				tmpRect.height =    CANVAS_HEIGHT-1 - tmpRect.y ;
+			}
+			return tmpRect;
 			break;
+		}
 		case leftAdjacent:
+		{
+			Rect tmpRect  = currentRect + Point(currentRect.width , 0);
+			if(tmpRect.x  + tmpRect.width >= CANVAS_WIDTH-1)
+			{
+				tmpRect.width =    CANVAS_WIDTH-1 - tmpRect.x;
+				
+			}
+			return tmpRect;
 			break;
+		}
 		case rightAdjacent:
-			Rect rightSideRect(0,corners[0].y ,corners[0].x , currentRect.height); // right ;
-			tmp = boolMap(rightSideRect).clone();
-		break;
+		{
+			Rect tmpRect  = currentRect + Point(- currentRect.width , 0);
+			if(tmpRect.x <=  0)
+			{
+				tmpRect.width += tmpRect.x;
+				tmpRect.x = 0;
+			}
+			return tmpRect;
+			break;
+		}
 	}
+
 }
 void emotionData::move(Mat &canvas, int deltaX , int deltaY)
 {
@@ -121,7 +156,7 @@ void emotionData::move(Mat &canvas, int deltaX , int deltaY)
 		this->seed.y = this->seed.y + deltaY ;
 	}
 	updateCurrentRect();
-	updateCorners();			
+	updateCorners();
 }
 bool readImage( std::fstream& emotionFiles, emotionData& output , int number) 
 {
@@ -245,13 +280,13 @@ double resizeRatio_y (emotionData src[], int numOfSource , int canvasHeight)
 	else
 		return 1;
 }
-double blankAreaRatio(Mat src)
+double blankAreaRatio(Mat &src)
 {
 	double output=0, src_score=0;
       int nr= src.rows; // number of rows  
       for (int j=0; j<nr; j++) {  
           uchar* data= src.ptr<uchar>(j);  
-          for (int i=0; i<src.cols * src.channels(); i=i+3) {  
+          for (int i=0; i<src.cols * src.channels(); i=i+ src.channels()) {  
             if(data[i]== 0)
 				src_score++;
             } // end of row                   
@@ -270,6 +305,28 @@ void draw(emotionData *src , Mat &canvas)
 			          src[i].corners[0].y - src[i].seed.y,
 					  src[i].currentRect.width ,
 					  src[i].currentRect.height);	
-		src[i].candidateROI[src[i].level](showRect).copyTo(canvas(Rect(src[i].currentRect)));
+		if(showRect.width !=0 && showRect.height!=0)
+			src[i].candidateROI[src[i].level](showRect).copyTo(canvas(Rect(src[i].currentRect)));
 	}
+}
+void updateBoolMap(emotionData *src , Mat& outputBoolMap)
+{
+	outputBoolMap.release();
+	Mat tmpBoolMap(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(0)) , 
+	block(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(255)) ;
+	for(int i = 0 ; i< N ;++i)
+	{
+		if(src[i].currentRect.width !=0 && src[i].currentRect.height!=0)
+		{
+			block(Rect(src[i].currentRect)).copyTo(tmpBoolMap(src[i].currentRect));
+		}
+	}
+	outputBoolMap = tmpBoolMap;
+}
+bool rectIsValid(Rect tmpRect)
+{
+	if(tmpRect.height >0 && tmpRect.width > 0 && tmpRect.x >= 0 && tmpRect.x < CANVAS_WIDTH  && tmpRect.y >=0 && tmpRect.y<CANVAS_HEIGHT) 
+		return true;
+	else
+		return false;
 }

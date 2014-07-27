@@ -53,15 +53,15 @@ class emotionData {
 		need seed point , i.e. corner[0]  and layer to be correct ; 
 		border detection !
 	*/
-	void updateCurrentRect();	
-	Mat getAdjacentBlankArea(Mat& boolMap , int side);
+	void updateCurrentRect();
+	Rect getAdjacentBlankArea(Mat& boolMap , int side);
 	
 };
 /*!
 	randomly assign a point to seed point ,i.e. top left corner to all input images.
 */
 void randomSeedPoint(emotionData src[], int numOfSource , int canvasWidth, int canvasHeight);
-double blankAreaRatio(Mat src);
+double blankAreaRatio(Mat &src);
 double resizeRatio_x (emotionData src[], int numOfSource, int canvasWidth);
 double resizeRatio_y (emotionData src[], int numOfSource, int canvasHeight);
 //bool isOverlapped();
@@ -70,6 +70,8 @@ double resizeRatio_y (emotionData src[], int numOfSource, int canvasHeight);
 //double varianceOfEmotionROIRatio(emotionROI *p , int n );
 
 void draw(emotionData *src , Mat &canvas);
+void updateBoolMap(emotionData *src , Mat& outputBoolMap);
+bool rectIsValid(Rect tmpRect);
 
 
 bool readImage( std::fstream& emotionFiles, emotionData& output  , int number ); 
