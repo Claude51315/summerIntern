@@ -21,9 +21,11 @@ class emotionData {
 	public:
 	Mat originImage  , stimulusMap;
 	vector<Mat> candidateROI;
+	vector <Rect> candidateROIRect;
 	Rect currentRect;
 	int layer;// not sure 
 	int level;
+	double visbleAreaRatio;
 	/*!
 	0 : top left
 	1 : top right
@@ -44,10 +46,9 @@ class emotionData {
 		updateCorners();  // update the remaining three corners 
 	*/
 	void initialize();
+	void updateVisbleAreaRatio(Mat& canvas);
 	void updateCandidateROI();	
-	/*
-		need CurrentRect to be correct ; 
-	*/
+	/*need CurrentRect to be correct ; */
 	void updateCorners();
 	/*
 		need seed point , i.e. corner[0]  and layer to be correct ; 
@@ -55,25 +56,30 @@ class emotionData {
 	*/
 	void updateCurrentRect();
 	Rect getAdjacentBlankArea(Mat& boolMap , int side);
-	
+	void expand();
+	/* return the ratio of blocked area and  total candidateROI area   , t*/ 
+	double localBlockedAreaRatio(Mat canvas); 
+	/*return the ratio of the area of currentRect and the area of candidateROI , k */
+	double currentRectAndCandidateROIAreaRatio(); 
+
+	/* cuurently not use*/
+	double blockedEmotionROIRatio(Mat canvas); // with respect to canvas
 };
 /*!
 	randomly assign a point to seed point ,i.e. top left corner to all input images.
 */
 void randomSeedPoint(emotionData src[], int numOfSource , int canvasWidth, int canvasHeight);
-double blankAreaRatio(Mat &src);
+double globalBlankAreaRatio(Mat &src);
 double resizeRatio_x (emotionData src[], int numOfSource, int canvasWidth);
 double resizeRatio_y (emotionData src[], int numOfSource, int canvasHeight);
-//bool isOverlapped();
-//int overlappedArea();
-//void swapEmotionROI(emotionROI a , emotionROI b);
-//double varianceOfEmotionROIRatio(emotionROI *p , int n );
-
+bool isOverlapped(emotionData src1, emotionData src2);
+Rect overlappedArea(emotionData src1, emotionData src2);
+void swapEmotionROI(emotionData &src1, emotionData &src2);
+double totalBlockedAreaRatio(emotionData *src , Mat canvas);
+double totalBlockedCurrentRect(emotionData *src);
 void draw(emotionData *src , Mat &canvas);
 void updateBoolMap(emotionData *src , Mat& outputBoolMap);
 bool rectIsValid(Rect tmpRect);
-
-
 bool readImage( std::fstream& emotionFiles, emotionData& output  , int number ); 
 class emotionROI  //  for reading images
 {

@@ -41,7 +41,10 @@ void emotionData::updateCandidateROI()
 			int xmin = px.front() , ymin = py.front() , xmax = px.back() , ymax = py.back();
 			Rect crop(xmin , ymin , xmax- xmin , ymax-ymin);
 			if(emotionROI_ratio(stimulusMap ,xmin , ymin , xmax ,ymax) > 0.5)
+			{
 				candidateROI.push_back(	originImage(crop).clone());
+				candidateROIRect.push_back(Rect(crop));
+			}
 		}
 	}
 }
@@ -52,6 +55,12 @@ void emotionData::initialize()
 	updateCurrentRect(); // choose candidateROI[layer] 
 	updateCorners();  // update the remaining three corners 
 	
+}
+void emotionData::updateVisbleAreaRatio(Mat& canvas)
+{
+	double k = currentRectAndCandidateROIAreaRatio();
+	double t = localBlockedAreaRatio(canvas);
+	visbleAreaRatio = k * (1-t);
 }
 void emotionData::updateCorners()
 {
@@ -83,7 +92,21 @@ void emotionData::updateCurrentRect()
 	}
 	currentRect = Rect(corners[0].x ,corners[0].y , range_x , range_y);
 }	
-
+void emotionData::expand()
+{
+	if(level != candidateROI.size()-1)
+	{
+		level++;
+		updateCurrentRect();
+		updateCorners();
+	}
+	else
+		std::cout<<"largest level" << std::endl;
+}
+double emotionData::currentRectAndCandidateROIAreaRatio() // k
+{
+	return (double)(currentRect.width*currentRect.height)/(double)(candidateROIRect[level].width*candidateROIRect[level].height) ;
+}
 Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 {
 	Mat tmp;
@@ -157,6 +180,62 @@ void emotionData::move(Mat &canvas, int deltaX , int deltaY)
 	}
 	updateCurrentRect();
 	updateCorners();
+}
+double emotionData::localBlockedAreaRatio(Mat canvas) //t 
+{
+	/*counting ratio with respect to area*/
+	 
+		double output =0 , blocked_area = 0;
+		Mat covered_current = canvas( Rect(currentRect)).clone();
+		Rect showRect(corners[0].x - seed.x,
+						  corners[0].y - seed.y,
+						  currentRect.width ,
+						  currentRect.height);	
+		Mat current = candidateROI[level](showRect).clone();
+		int nr= current.rows; // number of rows  
+		  for (int j=0; j<nr; j++) {  
+			  uchar* data_covered= covered_current.ptr<uchar>(j);  
+			  uchar* data= current.ptr<uchar>(j);  
+			  for (int i=0; i<current.cols * current.channels(); i=i+current.channels()) {  
+				if(data[i] != data_covered[i])
+					blocked_area++;
+				} // end of row                   
+		  }  
+		return output = blocked_area/(double)(this->currentRect.height*this->currentRect.width);
+	
+}
+double emotionData::blockedEmotionROIRatio(Mat canvas)
+{
+	double output =0 , blockedEmotionROI = 0 , totalEmotionROI=0 ;
+
+	Mat temp =  stimulusMap(candidateROIRect[level]).clone();
+	Rect showRect(corners[0].x - seed.x,
+						  corners[0].y - seed.y,
+						  currentRect.width ,
+						  currentRect.height);	
+	Mat currentstimulusMap = temp( showRect).clone();
+	Mat covered_current = canvas( Rect(currentRect)).clone();
+
+	Mat current = candidateROI[level](showRect).clone();
+	int nr= currentstimulusMap.rows; // number of rows  
+	
+		  for (int j=0; j<nr; j++) {  
+			  uchar* data_covered= covered_current.ptr<uchar>(j);  
+			  uchar* data = current.ptr<uchar>(j); 
+			  uchar* dataStimulus = currentstimulusMap.ptr<uchar>(j); 
+			  for (int i=0; i<currentstimulusMap.cols * currentstimulusMap.channels(); i++)
+				{  
+				 totalEmotionROI += dataStimulus[i];
+					if(data[i*3] != data_covered[i*3])
+							blockedEmotionROI += (int)dataStimulus[i];
+				} // end of row                   
+		  }  
+	
+		  	output = (double)blockedEmotionROI /totalEmotionROI;
+			return output;
+
+
+
 }
 bool readImage( std::fstream& emotionFiles, emotionData& output , int number) 
 {
@@ -280,7 +359,7 @@ double resizeRatio_y (emotionData src[], int numOfSource , int canvasHeight)
 	else
 		return 1;
 }
-double blankAreaRatio(Mat &src)
+double globalBlankAreaRatio(Mat &src)
 {
 	double output=0, src_score=0;
       int nr= src.rows; // number of rows  
@@ -309,6 +388,59 @@ void draw(emotionData *src , Mat &canvas)
 			src[i].candidateROI[src[i].level](showRect).copyTo(canvas(Rect(src[i].currentRect)));
 	}
 }
+bool isOverlapped(emotionData src1, emotionData src2)
+{
+	Rect check = overlappedArea( src1,  src2);
+	if(check.x == 0 && check.y == 0 && check.height == 0 && check.width == 0)
+		return false;
+	else
+		return true;
+} 
+Rect overlappedArea(emotionData src1, emotionData src2)
+{
+		Rect intersect,
+			 R1 = src1.currentRect,
+			 R2 = src2.currentRect; 
+
+		intersect.x = (R1.x < R2.x) ? R2.x : R1.x; 
+		intersect.y = (R1.y < R2.y) ? R2.y : R1.y; 
+		intersect.width = (R1.x + R1.width < R2.x + R2.width) ? 
+			R1.x + R1.width : R2.x + R2.width; 
+		intersect.width -= intersect.x; 
+		intersect.height = (R1.y + R2.height < R2.y + R2.height) ? 
+			R1.y + R1.height : R2.y + R2.height; 
+		intersect.height -= intersect.y;     
+    
+		// check for non-overlapping regions 
+		if ((intersect.width <= 0) || (intersect.height <= 0)) { 
+			intersect = Rect(0, 0, 0, 0); 
+		} 
+    
+		return intersect;
+
+}
+void swapEmotionROI(emotionData &src1, emotionData &src2)
+{
+	int xMoveDistance = src1.corners[0].x -src2.corners[0].x ,
+		yMoveDistance = src1.corners[0].y -src2.corners[0].y;
+	src1.seed = Point(src1.seed.x - xMoveDistance, src1.seed.y - yMoveDistance );	
+	src2.seed = Point(src2.seed.x + xMoveDistance, src2.seed.y + yMoveDistance );
+	src1.updateCurrentRect();	
+	src1.updateCorners();
+	src2.updateCurrentRect();
+	src2.updateCorners();
+}
+double totalBlockedAreaRatio(emotionData *src , Mat canvas)
+{
+	double  totalBlockedArea = 0; 
+	for(int i =0 ; i < N; i++)
+	{
+		totalBlockedArea += src[i].localBlockedAreaRatio(canvas);
+	}
+	totalBlockedArea = totalBlockedArea/N ;
+	return totalBlockedArea;
+}
+
 void updateBoolMap(emotionData *src , Mat& outputBoolMap)
 {
 	outputBoolMap.release();
