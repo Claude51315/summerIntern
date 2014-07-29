@@ -9,7 +9,7 @@
 
 #define CANVAS_WIDTH 1024
 #define CANVAS_HEIGHT 768
-#define N 5  // number of input image 
+#define N 6  // number of input image 
 
 using namespace cv;
 #define upAdjacent 100
@@ -55,15 +55,20 @@ class emotionData {
 		border detection !
 	*/
 	void updateCurrentRect();
-	Rect getAdjacentBlankArea(Mat& boolMap , int side);
+	Rect getAdjacentBlankArea(Mat& boolMap , int side);    // updated at 10:09 20140728 
 	void expand();
-	/* return the ratio of blocked area and  total candidateROI area   , t*/ 
-	double localBlockedAreaRatio(Mat canvas); 
+	/*
+		choose mlevel of candidateROI 
+		return the ratio of blocked area and  total candidateROI area  , t
+		
+	*/ 
+	double localBlockedAreaRatio(Mat canvas , int mlevel ); 
 	/*return the ratio of the area of currentRect and the area of candidateROI , k */
 	double currentRectAndCandidateROIAreaRatio(); 
 
 	/* cuurently not use*/
-	double blockedEmotionROIRatio(Mat canvas); // with respect to canvas
+	double blockedEmotionROIRatio(Mat canvas); // with respect to 
+	double nth_LevelBlockedEmotionROIRatio(Mat& canvas , int level);
 };
 /*!
 	randomly assign a point to seed point ,i.e. top left corner to all input images.
@@ -80,7 +85,11 @@ double totalBlockedCurrentRect(emotionData *src);
 void draw(emotionData *src , Mat &canvas);
 void updateBoolMap(emotionData *src , Mat& outputBoolMap);
 bool rectIsValid(Rect tmpRect);
+double varianceVisbleAreaRatio(emotionData *src, Mat canvas);
+void globalRandomMove(emotionData& src, Mat& canvas);
 bool readImage( std::fstream& emotionFiles, emotionData& output  , int number ); 
+
+double localMove(emotionData *src , Mat& canvas , Mat& boolMap);
 class emotionROI  //  for reading images
 {
 public:

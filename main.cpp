@@ -1,7 +1,9 @@
 #include "emotionROI.h"
 
+double globalblockedRatio(emotionData src[]);
 void main()
 {
+	time_t t = clock();
 	Mat canvas(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8UC3 , Scalar(0,0,0)),
 		boolMap(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(0)) , 
 		block(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(255)) ;;
@@ -21,115 +23,77 @@ void main()
 		src[i].initialize();
 	}
 	imageData.close();
-
-	srand(time(NULL));
-
-	int  randomImageNumber=0 , randomSide=0 , 
-		dx=0,dy=0; 
-	double canvasCurrentBlankAreaScore , canvasNextBlankAreaScore; // global 
-
-	
-	
-	updateBoolMap(src ,boolMap);
-	draw(src , canvas);
+	updateBoolMap(src , boolMap);
+	draw(src,canvas);
 	for(int i = 0 ; i< N ; ++i)
-	{
 		src[i].updateVisbleAreaRatio(canvas);
-		
+	for(int i = 0 ; i< N ;i++)
+	{
+		std::cout << src[i].visbleAreaRatio <<std::endl;
+		std::cout << src[i].level <<std::endl;
+		std::cout<<"-----"<<std::endl;
 	}
+	std::cout << "before : blank area ratio "<< globalBlankAreaRatio(boolMap)<< std::endl;
+	std::cout << "before : blocked area ratio "<< totalBlockedAreaRatio(src , canvas)<< std::endl;
+	
+	std::cout << "==========================="<< std::endl;
+	imwrite("origin.jpg" , canvas);
+	
 	int order[N];
 	for(int i = 0 ; i< N ;i++)
 		order[i] = i; 
-	for(int i = 0 ; i< N ;i++)
-		for(int j = i+ 1 ; j < N ; j++)
-		{
-			if(src[i].visbleAreaRatio > src[j].visbleAreaRatio)
-				std::swap(order[i] , order[j]);
-		}
-	
-	imshow("before" , canvas);
-	waitKey(0);
-	double qq = 0;
-	for(int i = 0 ;i< N ;i++)
-		qq += (src[i].candidateROI[src[i].layer].cols * src[i].candidateROI[src[i].layer].rows);
-	qq = qq / (CANVAS_HEIGHT * CANVAS_WIDTH);
-	
-	
-	emotionData *p;
-	Rect tmpCurrentRect;
-	int n = 0 , pick = 0; 
-	bool goodFlag = 0  ,endFlag = 0 ;;
-	while( n <1000)
-	{
 
-		for(int i= 0 ;i< N ; i++)
+	int n = 0 ,qq = 0; 
+	bool vFlag = false ; 
+
+	//::cout  <<"WWW : "<< src[0].blockedEmotionROIRatio(canvas) <<std::endl;
+	while(n++ <3  )// && globalBlankAreaRatio(boolMap) > 0.28 
+	{
+		qq = 0 ;
+		vFlag = false; 
+		while(vFlag == false)
 		{
-			for(int j = 0 ; j < 4 ; j++)
-			{
-				randomImageNumber = order[i];
-				randomSide = j + 100 ;
-				p = &src[randomImageNumber];
-				Rect tmpRect = p->getAdjacentBlankArea(boolMap , randomSide);
-				canvasCurrentBlankAreaScore  = globalBlankAreaRatio(boolMap) ;
-		
-				if(abs(canvasCurrentBlankAreaScore -qq) < 0.08  )
+			vFlag = true ;
+			localMove(src , canvas ,boolMap);
+			for(int i = 0 ; i< N ;i++)
+				if(src[i].visbleAreaRatio < 0.6)
 				{
-					endFlag = 1;
-					break;
+					globalRandomMove(src[i],canvas);
+					vFlag = false; 
 				}
-				if(rectIsValid(tmpRect))
-				{
-			
-					dx = tmpRect.x - p->seed.x;
-					dy = tmpRect.y - p->seed.y;
-					p->move(canvas , dx ,dy );
-					updateBoolMap(src , boolMap);
-					canvasNextBlankAreaScore = globalBlankAreaRatio(boolMap);
-					if(canvasNextBlankAreaScore >= canvasCurrentBlankAreaScore  )  // not good 
-					{
-						p->move(canvas , -dx ,-dy );
-						updateBoolMap(src , boolMap);
-						//std::cout<< "qq" <<std::endl;
-					}
-					else  // good 
-					{
-						draw(src , canvas);
-						for(int i = 0 ; i< N ; ++i)
-							src[i].updateVisbleAreaRatio(canvas);
-						for(int i = 0 ; i< N ;i++)
-							for(int j = i+ 1 ; j < N ; j++)
-							{
-								if(src[i].visbleAreaRatio > src[j].visbleAreaRatio)
-								std::swap(order[i] , order[j]);
-							}
-						goodFlag = 1 ; 
-					}
-					if(goodFlag)
-						break;
-					if(endFlag)
-						break;
-				}
-				if(goodFlag)
-						break;
-				if(endFlag)
-						break;
-			}
-			if(goodFlag)
-			{
-				std::cout<<"good"<<std::endl;
-				break;
-			}
-			if(endFlag)
-						break;
+			qq++;
 		}
-		goodFlag = 0 ;
-		n++;
-		std::cout<<n<<std::endl;
-		if(endFlag)
-			break;
+		for(int i = 0 ; i< N ;i++)
+			src[i].expand();
+		draw(src , canvas);
+		for(int i = 0 ; i< N ;i++)
+			src[i].updateVisbleAreaRatio(canvas);
+		updateBoolMap(src , boolMap);
 	}
-	std::cout<<"done"<<std::endl;
-	draw(src , canvas);
-	imshow("after" , canvas);
-	waitKey(0);
+	for(int i = 0 ; i< N ;i++)
+	{
+		std::cout << src[i].visbleAreaRatio <<std::endl;
+		std::cout << src[i].level <<std::endl;
+		std::cout<<"-----"<<std::endl;
+	}
+	std::cout << "after : blank area ratio "<< globalBlankAreaRatio(boolMap)<< std::endl;
+	std::cout << "after : blocked area ratio "<< totalBlockedAreaRatio(src , canvas)<< std::endl;
+	
+	imwrite("result.jpg" , canvas);
+	t = clock() - t ; 
+	std::cout<< t <<std::endl;
+	system("pause");
+	
+}
+double globalblockedRatio(emotionData src[])
+{
+	double ans = 0 , allArea = 0 , blockedArea = 0;
+	for(int i = 0 ; i < N ;i++)
+	{
+		allArea += src[i].currentRect.area();
+		for(int j = i+1; j< N ;j++)
+			blockedArea += (src[i].currentRect & src[j].currentRect).area();
+	}
+	ans = blockedArea / allArea ;
+	return ans;
 }
