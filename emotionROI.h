@@ -62,13 +62,15 @@ class emotionData {
 		return the ratio of blocked area and  total candidateROI area  , t
 		
 	*/ 
-	double localBlockedAreaRatio(Mat canvas , int mlevel ); 
+	double localBlockedAreaRatio(Mat& canvas , int mlevel ); 
 	/*return the ratio of the area of currentRect and the area of candidateROI , k */
 	double currentRectAndCandidateROIAreaRatio(); 
 
 	/* cuurently not use*/
 	double blockedEmotionROIRatio(Mat canvas); // with respect to 
 	double nth_LevelBlockedEmotionROIRatio(Mat& canvas , int level);
+
+	double LevelZeroROIBlockedRatio(Mat& canvas);
 };
 /*!
 	randomly assign a point to seed point ,i.e. top left corner to all input images.
