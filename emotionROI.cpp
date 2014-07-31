@@ -99,7 +99,6 @@ void emotionData::expand()
 		level++;
 		updateCurrentRect();
 		updateCorners();
-		
 	}
 	else
 		std::cout<<"largest level" << std::endl;
@@ -160,7 +159,7 @@ Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 	}
 
 }
-void emotionData::move(Mat &canvas, int deltaX , int deltaY)
+bool emotionData::move(Mat &canvas, int deltaX , int deltaY)
 {
 	if( !(
 			((deltaY + this->seed.y) <=1)||
@@ -178,9 +177,13 @@ void emotionData::move(Mat &canvas, int deltaX , int deltaY)
 	{
 		this->seed.x = this->seed.x + deltaX ; 
 		this->seed.y = this->seed.y + deltaY ;
+		updateCurrentRect();
+		updateCorners();
+		return 1;
 	}
 	updateCurrentRect();
 	updateCorners();
+	return 0;
 }
 double emotionData::localBlockedAreaRatio(Mat& canvas , int mlevel) //t 
 {
@@ -250,24 +253,52 @@ double emotionData::blockedEmotionROIRatio(Mat canvas)
 
 
 }
-/*double emotionData::nth_LevelBlockedEmotionROIRatio(Mat& canvas , int level)
+double emotionData::LevelZeroROIBlockedRatio(Mat& canvas)
 {
-	Mat tmpCandidateEmotionROI = candidateROI[level];
-	Mat tmpShowOnCanvasROI = canvas(currentRect).clone();
-	Rect showRect(corners[0].x - seed.x,
-						  corners[0].y - seed.y,
-						  currentRect.width ,
-						  currentRect.height);
-	tmpCandidateEmotionROI = tmpCandidateEmotionROI(showRect).clone();
-	int r = tmpCandidateEmotionROI.rows;
-	for(int i = 0 ;i
+
+	double blockedArea , output = 1;
+	Mat tmpLevelzero = candidateROI[0];
+	int tmpWidth = tmpLevelzero.cols , tmpHeight = tmpLevelzero.rows;
+	Mat tmpOnCanvas(tmpHeight , tmpWidth , CV_8UC3 , Scalar(0,0,0));
+	Rect showOnCanvas;
+	int tmpx = candidateROIRect[0].x  - candidateROIRect[level].x , 
+		tmpy = candidateROIRect[0].y  - candidateROIRect[level].y ;
+	int lx = seed.x + tmpx ,ly = seed.y + tmpy;
+	int lx_0_dis = 0 - lx , ly_0_dis = 0 - ly ; 
+	int XonCandidateROI =0  ,YonCandidateROI =0 , widthOnCandidateROI = tmpWidth  , heightOnCandidateROI = tmpHeight;
+	if(lx < 0)
+		XonCandidateROI = -lx ; 
+	if(ly < 0)
+		YonCandidateROI = -ly ; 
+	if(lx +  tmpWidth > CANVAS_WIDTH)
+		widthOnCandidateROI = CANVAS_WIDTH - lx -1 ;
+	if(ly + tmpHeight > CANVAS_HEIGHT)
+		heightOnCandidateROI = CANVAS_HEIGHT - ly -1  ;
+	lx = (lx < 0) ? 0 : lx;
+	ly = (ly < 0) ? 0 : ly;
+	std::cout<<" lx = " << lx <<std::endl;
+	std::cout<<" ly = " << ly <<std::endl;
+	std::cout<<" widthOnCandidateROI = " << widthOnCandidateROI <<std::endl;
+	std::cout<<" heightOnCandidateROI = " << heightOnCandidateROI <<std::endl;
 	
-	imshow("a" , tmpCandidateEmotionROI);
-	imshow("b" , tmpShowOnCanvasROI);
-	waitKey(0);
-	return 0;
+	showOnCanvas =Rect(lx , ly , widthOnCandidateROI , heightOnCandidateROI);
+	
+	canvas(showOnCanvas).copyTo(tmpOnCanvas(Rect( XonCandidateROI,YonCandidateROI,widthOnCandidateROI,heightOnCandidateROI)));
+	int nr= tmpOnCanvas.rows; // number of rows  
+	double blockArea = 0 ;
+		  for (int j=0; j<nr; j++) {  
+			  uchar* data_original= tmpLevelzero.ptr<uchar>(j);  
+			  uchar* data_onCanvas= tmpOnCanvas.ptr<uchar>(j);  
+			  for (int i=0; i<tmpOnCanvas.cols * tmpOnCanvas.channels(); i=i+tmpOnCanvas.channels()) {  
+				if(data_original[i] != data_onCanvas[i])
+					blockArea++;
+				} // end of row                   
+		  }
+	output = blockArea / (tmpWidth * tmpHeight);
+	return output;
 }
-*/
+
+
 bool readImage( std::fstream& emotionFiles, emotionData& output , int number) 
 {
 	string text , emotionString , fileString = "Emotion6/" , imageString;
@@ -512,199 +543,257 @@ double varianceVisbleAreaRatio(emotionData *src, Mat canvas)
     return sdev; 
   
 }
-void globalRandomMove(emotionData &src, Mat& canvas)
+void globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap)
 {
 	Point output;
 	srand(time(NULL));
-	int distance_x =  src.candidateROI[src.level].cols-1 ; 
-	int distance_y = src.candidateROI[src.level].rows-1 ;
+	Mat temp = canvas.clone();
+	temp(src[n].currentRect).setTo(0);
+	int distance_x =  src[n].candidateROI[src[n].level].cols-1 ; 
+	int distance_y = src[n].candidateROI[src[n].level].rows-1 ;
 	int minScore_x=0, minScore_y=0;
-	double Score=0.0f;
+	double Score=0.5f;
+	bool goodFlag = 0;
 	for(int i = 0; i < CANVAS_WIDTH; i=i+ distance_x/2)
+	{
 		for(int j = 0; j < CANVAS_HEIGHT; j = j+distance_y/2)
 			{	
-				if(i+distance_x <canvas.cols && j+distance_y <canvas.rows)
-				if( globalBlankAreaRatio(canvas(Rect(i,j,distance_x,distance_y))) >= Score)
+				if(i+distance_x <temp.cols && j+distance_y <temp.rows)
+				if( globalBlankAreaRatio(temp(Rect(i,j,distance_x,distance_y))) >= Score)
 				{
 					minScore_x = i;
 					minScore_y = j; 
-					Score = globalBlankAreaRatio(canvas(Rect(i,j,distance_x,distance_y)));
+					Score = globalBlankAreaRatio(temp(Rect(i,j,distance_x,distance_y)));
+					if(Score > 0.5)
+					{	
+						break;
+					}
 				}
 			}
-	output.x =  minScore_x ; 
-	output.y =  minScore_y ;
-	src.move(canvas,output.x-src.corners[0].x,output.y-src.corners[0].y); 
+		if(Score > 0.5)
+		{	
+			break;
+		}
+	}	
+		
+		for(int i = CANVAS_WIDTH-1; i >= 0 ; i=i- distance_x/2)
+		for(int j = CANVAS_HEIGHT-1 ; j >=0 ; j = j- distance_y/2)
+			{	
+				if(i+distance_x <temp.cols && j+distance_y <temp.rows)
+				if( globalBlankAreaRatio(temp(Rect(i,j,distance_x,distance_y))) >= Score)
+				{
+					minScore_x = i;
+					minScore_y = j; 
+					Score = globalBlankAreaRatio(temp(Rect(i,j,distance_x,distance_y)));
+					if(Score==1)
+						break;
+				}
+			}
+			
+	output.x =  minScore_x + rand()%distance_x/16 ; 
+	output.y =  minScore_y +rand()%distance_y/16;
+	int dx = output.x-src[n].corners[0].x, dy = output.y-src[n].corners[0].y;
+	src[n].move(canvas,dx ,dy);
+	updateBoolMap(src , boolMap);
+	draw(src , canvas);
+	for(int i = 0 ; i<N;i++)
+		src[i].updateVisbleAreaRatio(canvas);
+		
 
-}
-double localMove(emotionData *src , Mat& canvas , Mat& boolMap)
+}  // revised
+double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number)
 {
 	draw(src , canvas);
+	updateBoolMap(src ,boolMap);
 	for(int i = 0 ; i< N ; ++i)
 		src[i].updateVisbleAreaRatio(canvas);
-	int order[N];
-	bool movable[N];
-	for(int i = 0 ; i< N ;i++)
-		order[i] = i; 
-	for(int i = 0 ; i< N ;i++)
-		for(int j = i+ 1 ; j < N ; j++)
-		{
-			if(src[i].visbleAreaRatio > src[j].visbleAreaRatio)
-				std::swap(order[i] , order[j]);
-		}	
 	emotionData *p;
-	int n  = 0  , side = 0 ,dx=0 ,dy=0 ; 
+	int n  = 1  , side = 0 ,dx=0 ,dy=0 ; 
+
+
 	double curGlobalBlankAreaRatio = 0 , nextGlobalBlankAreaRatio = 0;
 	double curLocalVisbleAreaRatio = 0 , nextLocalVisbleAreaRatio = 0;
-	double curLocalNONVisbleROIRatio = 0 , nextLocalNONVisbleROIRatio = 0;
 	double curLevelZeroBlockedROIRatio = 0 , nextLevelZeroBlockedROIRatio = 0;
-	bool goodFlag = 0 ,endFlag=0;
+	double curOtherLevelZeroBlockedROIRatioSum = 0 , nextOtherLevelZeroBlockedROIRatioSum = 0;
+	//otherLevelZeroBlockedAreaSum(src ,canvas, number)
+	bool goodFlag = 0 ,endFlag=0 , moveFlag = 0;
 	int badCount = 0 ;
-	while(n++ < N * 20  )
+	
+	std::cout <<"local move 1 \n";
+	while(n++ <10)
 	{
-			/*if(badCount >4*N)
-			{
-				std::cout<<"qqq"<<std::endl;
-				break;
-			}*/
-			for(int i =0 ; i< N; i++)
-				movable[i] = false;
-			updateBoolMap(src , boolMap);
-			draw(src , canvas);
-			endFlag =1;
-			for(int i = 0 ;i< N;i++)
-			{
-				if(src[i].visbleAreaRatio < 0.7  && src[i].LevelZeroROIBlockedRatio(canvas) < 0.95  )
+		moveFlag = 0 ;
+		for(int j = 0 ; j< 4 ;j++)
+		{
+
+			std::cout <<"local move 2 \n";
+				if(moveFlag)
+					break;
+				p = &src[number];
+				side = j + 100 ; 
+				Rect tmpRect = p->getAdjacentBlankArea(boolMap,side);
+				curGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap);
+				curLocalVisbleAreaRatio = p->visbleAreaRatio;
+				curLevelZeroBlockedROIRatio = p->LevelZeroROIBlockedRatio(canvas);
+				curOtherLevelZeroBlockedROIRatioSum = otherLevelZeroBlockedAreaSum(src ,canvas, number);
+				//imshow("before move" , canvas);
+				if(rectIsValid(tmpRect))
 				{
-					movable[i] = true ; 
-					endFlag = false;
-				}
-			}
-			if(globalBlankAreaRatio(boolMap) < 0.45)
-			if(endFlag)
-			{
-				break;
-			}
-			for(int i = 0 ; i< N ;i++)
-			{
-				if(movable[order[i]])
-				for(int j = 0 ; j< 4 ;j++)
-				{
-					p = &src[order[i]];
-					side = j + 100 ; 
-					Rect tmpRect = p->getAdjacentBlankArea(boolMap,side);
-					curGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap);
-					curLocalVisbleAreaRatio = p->visbleAreaRatio;
-					curLocalNONVisbleROIRatio =p->blockedEmotionROIRatio(canvas);
-					curLevelZeroBlockedROIRatio = p->LevelZeroROIBlockedRatio(canvas);
-					//imshow("before move" , canvas);
-					if(rectIsValid(tmpRect))
+					dx = (tmpRect.x - p->currentRect.x) / ((p->level+1));
+					dy = (tmpRect.y - p->currentRect.y) / ((p->level+1)) ;
+					if(dx == 0)
+						dx = mindx(side);
+					if(dy == 0)
+						dy = mindy(side);
+					//std::cout << "dx = " <<dx <<std::endl;
+					//std::cout << "dy = " <<dy <<std::endl;
+					/*
+					std::cout <<"picture = "<<order[i]<<std::endl;
+					std::cout <<"side = "<<side<<std::endl;
+					std::cout <<"dx = "<<dx<<std::endl;
+					std::cout <<"dy = "<<dy<<std::endl;
+					*/
+					std::cout <<"local move 3 \n";
+
+					Rect beforeMove = p->currentRect;	
+					//std::cout<<"local move" <<std::endl;
+					if(p->move(canvas , dx ,dy ))
+						;
+					else
 					{
-						dx = (tmpRect.x - p->currentRect.x) / ((p->level+1) *10)  ;
-						dy = (tmpRect.y - p->currentRect.y) / ((p->level+1) *10) ;
-						/*
-						std::cout <<"picture = "<<order[i]<<std::endl;
-						std::cout <<"side = "<<side<<std::endl;
-						std::cout <<"dx = "<<dx<<std::endl;
-						std::cout <<"dy = "<<dy<<std::endl;
-						*/
-						Rect beforeMove = p->currentRect;	
+						dx = mindx(side);
+						dy = mindy(side);
 						p->move(canvas , dx ,dy );
-						updateBoolMap(src , boolMap);
-						draw(src , canvas);
-						//imshow("tmp move" , canvas);
-						p->updateVisbleAreaRatio(canvas);
-						nextGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap);
-						nextLocalVisbleAreaRatio = p->visbleAreaRatio;
-						nextLocalNONVisbleROIRatio = p->blockedEmotionROIRatio(canvas);
-						nextLevelZeroBlockedROIRatio = p->LevelZeroROIBlockedRatio(canvas);
-						/*
+					}
+					//system("pause");
+					updateBoolMap(src , boolMap);
+					draw(src , canvas);
+					for(int i = 0 ; i<N;i++)
+						src[i].updateVisbleAreaRatio(canvas);
+					std::cout <<"local move 4 \n";
+
+					//imshow("tmp move" , canvas);
+					nextGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap);
+					nextLocalVisbleAreaRatio = p->visbleAreaRatio;
+					nextLevelZeroBlockedROIRatio = p->LevelZeroROIBlockedRatio(canvas);
+					nextOtherLevelZeroBlockedROIRatioSum = otherLevelZeroBlockedAreaSum(src ,canvas, number);
+					/*
 						std::cout<<"curGlobalBlankAreaRatio = "<<curGlobalBlankAreaRatio<<std::endl;
 						std::cout<<"nextGlobalBlankAreaRatio = "<<nextGlobalBlankAreaRatio<<std::endl;
 						std::cout<<"curLocalVisbleAreaRatio = "<<curLocalVisbleAreaRatio<<std::endl;
 						std::cout<<"nextLocalVisbleAreaRatio = "<<nextLocalVisbleAreaRatio<<std::endl;
-						*/
-						/*if(  nextGlobalBlankAreaRatio < curGlobalBlankAreaRatio && nextLocalVisbleAreaRatio >= curLocalVisbleAreaRatio
-							 &&  nextLocalNONVisbleROIRatio <= curLocalNONVisbleROIRatio  && nextLevelZeroBlockedROIRatio <= curLevelZeroBlockedROIRatio
-						) // good*/
-						if(  nextGlobalBlankAreaRatio < curGlobalBlankAreaRatio && nextLocalVisbleAreaRatio >= curLocalVisbleAreaRatio
-							 && nextLevelZeroBlockedROIRatio <= curLevelZeroBlockedROIRatio
-						) // good
-						{
-							badCount = 0;
-							std::cout<<"good"<<std::endl;
-							for(int i = 0 ; i< N ;i++)
-								for(int j = i+ 1 ; j < N ; j++)
-								{
-									if(src[i].visbleAreaRatio > src[j].visbleAreaRatio)
-										std::swap(order[i] , order[j]);
-								}
-							goodFlag = true;
-						}
-						else
-						{
-							badCount ++ ; 
-							Rect afterMove = p->currentRect;	
-							//std::cout<<"bad"<<std::endl;
-							if(beforeMove.x ==afterMove.x && beforeMove.y == afterMove.y)
-							;
-							else
-								p->move(canvas , -dx ,-dy );
-							updateBoolMap(src , boolMap);
-							draw(src , canvas);
-							p->updateVisbleAreaRatio(canvas);
-						}
-						//imshow("rrr" , canvas);
-						//waitKey(0);
-						//std::cout<<"------------------------ "<<std::endl;
-						if(goodFlag == true)
-							break;
+					*/
+					if( nextGlobalBlankAreaRatio  <= curGlobalBlankAreaRatio&& 
+						nextLocalVisbleAreaRatio >= curLocalVisbleAreaRatio  &&
+						nextLevelZeroBlockedROIRatio <= curLevelZeroBlockedROIRatio// &&
+						//nextOtherLevelZeroBlockedROIRatioSum <= curOtherLevelZeroBlockedROIRatioSum
+					  ) // good
+					{
+						//badCount = 0;
+						//std::cout<<"good"<<std::endl;
+						moveFlag = 1;
+						updateBoolMap(src , boolMap);
+						draw(src , canvas);
+						for(int i = 0 ; i<N;i++)
+							src[i].updateVisbleAreaRatio(canvas);
 					}
-		
+					else
+					{
+						
+						Rect afterMove = p->currentRect;	
+						//std::cout<<"bad"<<std::endl;
+						if(beforeMove.x ==afterMove.x && beforeMove.y == afterMove.y)
+						 ;
+						else
+							p->move(canvas , -dx ,-dy );
+						updateBoolMap(src , boolMap);
+						draw(src , canvas);
+						for(int i = 0 ; i<N;i++)
+							src[i].updateVisbleAreaRatio(canvas);
+					}
+					//imshow("rrr" , canvas);
+					//waitKey(0);
+					//std::cout<<"------------------------ "<<std::endl;
 				}
-				if(goodFlag == true)
-					break;
+				else
+				{
+
+					dx = mindx(side);
+					dy = mindy(side);
+					p->move(canvas , dx ,dy );
+				}
 			}
-			goodFlag = false;
 	}
 	updateBoolMap(src , boolMap);
 	draw(src , canvas);
+	for(int i = 0 ; i<N;i++)
+		src[i].updateVisbleAreaRatio(canvas);
 	return globalBlankAreaRatio(boolMap);
 }
-double emotionData::LevelZeroROIBlockedRatio(Mat& canvas)
+int mindx(int side)
 {
-	double blockedArea , output = 1;
-	Mat tmpLevelzero = candidateROI[0];
-	int tmpWidth = tmpLevelzero.cols , tmpHeight = tmpLevelzero.rows;
-	Mat tmpOnCanvas(tmpHeight , tmpWidth , CV_8UC3 , Scalar(0,0,0));
-	Rect showOnCanvas;
-	int tmpx = candidateROIRect[0].x  - candidateROIRect[level].x , 
-		tmpy = candidateROIRect[0].y  - candidateROIRect[level].y ;
-	int lx = seed.x + tmpx ,ly = seed.y + tmpy;
-	int lx_0_dis = 0 - lx , ly_0_dis = 0 - ly ; 
-	int XonCandidateROI =0  ,YonCandidateROI =0 , widthOnCandidateROI = tmpWidth  , heightOnCandidateROI = tmpHeight;
-	if(lx < 0)
-		XonCandidateROI = -lx ; 
-	if(ly < 0)
-		YonCandidateROI = -ly ; 
-	if(lx +  tmpWidth > CANVAS_WIDTH)
-		widthOnCandidateROI = CANVAS_WIDTH - lx ;
-	if(ly + tmpHeight > CANVAS_HEIGHT)
-		heightOnCandidateROI = CANVAS_HEIGHT - ly ;
-	lx = (lx < 0) ? 0 : lx;
-	ly = (ly < 0) ? 0 : ly;
-	showOnCanvas =Rect(lx , ly , widthOnCandidateROI , heightOnCandidateROI);
-	canvas(showOnCanvas).copyTo(tmpOnCanvas(Rect( XonCandidateROI,YonCandidateROI,widthOnCandidateROI,heightOnCandidateROI)));
-	int nr= tmpOnCanvas.rows; // number of rows  
-	double blockArea = 0 ;
-		  for (int j=0; j<nr; j++) {  
-			  uchar* data_original= tmpLevelzero.ptr<uchar>(j);  
-			  uchar* data_onCanvas= tmpOnCanvas.ptr<uchar>(j);  
-			  for (int i=0; i<tmpOnCanvas.cols * tmpOnCanvas.channels(); i=i+tmpOnCanvas.channels()) {  
-				if(data_original[i] != data_onCanvas[i])
-					blockArea++;
-				} // end of row                   
-		  }
-	output = blockArea / (tmpWidth * tmpHeight);
-	return output;
-}
+	switch(side)
+	{
+		case upAdjacent:
+		case downAdjacent:
+		{
+			return 0 ; 
+			break;
+		}
+		case leftAdjacent:
+		{
+			return -10 ;
+			break;
+		}
+		case rightAdjacent:
+		{
+			return 10 ;
+			break;
+		}
+	}
 
+}
+int mindy(int side)
+{
+	switch(side)
+	{
+		case rightAdjacent:
+		case leftAdjacent:
+		{
+			return 0 ; 
+			break;
+		}
+		case upAdjacent:
+		{
+			return -10 ;
+			break;
+		}
+		case downAdjacent:
+		{
+			return 10 ;
+			break;
+		}	
+	}
+}
+double maxinumVisibleAreaRatio(emotionData *src , Mat& canvas , Mat& boolMap)
+{
+	double canvasArea = canvas.cols * canvas.rows; 
+	double tmp = 0 ;
+	emotionData *p;
+	for(int i = 0 ;i<N ;  ++i)
+	{
+		p = &src[i];	
+		tmp += ( p->candidateROI[p->level].cols * p->candidateROI[p->level].rows) ; 
+	}
+	return tmp / canvasArea ; 
+}
+double otherLevelZeroBlockedAreaSum(emotionData *src ,  Mat&canvas , int select)
+{
+	double ans = 0 ;
+	for(int i = 0 ;i< N ;i++)
+		if(i!=select)
+		{
+			ans += src[i].LevelZeroROIBlockedRatio(canvas);
+		}
+	return ans ; 
+}
