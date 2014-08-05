@@ -9,12 +9,12 @@
 
 #define CANVAS_WIDTH 1024
 #define CANVAS_HEIGHT 768
-#define N 5// number of input image 
+#define N 8// number of input image 
 
 using namespace cv;
 #define upAdjacent 100
-#define downAdjacent 101
-#define leftAdjacent 102
+#define leftAdjacent 101
+#define downAdjacent 102
 #define rightAdjacent 103
 
 class emotionData {
@@ -22,7 +22,12 @@ class emotionData {
 	Mat originImage  , stimulusMap;
 	vector<Mat> candidateROI;
 	vector <Rect> candidateROIRect;
+	Rect ShowRectInCandidateROI; // in candidate ROI
+	Rect ShowRectInOriginalImage; // in original image
+	Rect finalRectInCanvas; 
+	Rect finalRectInSrc;
 	Rect currentRect;
+	Rect levelZeroRectinCanvas;
 	int layer;// not sure 
 	int level;
 	double visbleAreaRatio;
@@ -45,7 +50,7 @@ class emotionData {
 		updateCurrentRect(); // choose candidateROI[layer] 
 		updateCorners();  // update the remaining three corners 
 	*/
-	void initialize();
+	void initialize(int number);
 	void updateVisbleAreaRatio(Mat& canvas);
 	void updateCandidateROI();	
 	/*need CurrentRect to be correct ; */
@@ -56,7 +61,7 @@ class emotionData {
 	*/
 	void updateCurrentRect();
 	Rect getAdjacentBlankArea(Mat& boolMap , int side);    // updated at 10:09 20140728 
-	void expand();
+	void expand(Mat canvas, double thresholdOfNearBlankArea);
 	/*
 		choose mlevel of candidateROI 
 		return the ratio of blocked area and  total candidateROI area  , t
@@ -79,8 +84,8 @@ void randomSeedPoint(emotionData src[], int numOfSource , int canvasWidth, int c
 double globalBlankAreaRatio(Mat &src);
 double resizeRatio_x (emotionData src[], int numOfSource, int canvasWidth);
 double resizeRatio_y (emotionData src[], int numOfSource, int canvasHeight);
-bool isOverlapped(emotionData src1, emotionData src2);
-Rect overlappedArea(emotionData src1, emotionData src2);
+bool isOverlapped(Rect R1, Rect R2);
+Rect overlappedArea(Rect R1, Rect R2);
 void swapEmotionROI(emotionData &src1, emotionData &src2);
 double totalBlockedAreaRatio(emotionData *src , Mat canvas);
 double totalBlockedCurrentRect(emotionData *src);
@@ -88,16 +93,19 @@ void draw(emotionData *src , Mat &canvas);
 void updateBoolMap(emotionData *src , Mat& outputBoolMap);
 bool rectIsValid(Rect tmpRect);
 double varianceVisbleAreaRatio(emotionData *src, Mat canvas);
-void globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap);
+bool globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap);
 bool readImage( std::fstream& emotionFiles, emotionData& output  , int number ); 
+void switchLayer(emotionData& src1, emotionData& src2);
 
 
-double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number );
+double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number ,int mode);
 int mindx(int side);
 int mindy(int side);
 double maxinumVisibleAreaRatio(emotionData *src , Mat& canvas , Mat& boolMap);
 double otherLevelZeroBlockedAreaSum(emotionData *src , Mat&canvas , int select);
-
+double adjacentAreaBlankRatio(Mat& boolMap);
+void finalextension(emotionData *src , Mat &canvas);
+bool switchable(emotionData *src , Mat& canvas , Mat&boolMap ,int p , int q);
 
 
 class emotionROI  //  for reading images
