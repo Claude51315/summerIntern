@@ -6,10 +6,20 @@
 #include<fstream>
 #include<string>
 #include<time.h>
+#include<cmath>
+#include <algorithm>
+#define PI 3.14159
 
 #define CANVAS_WIDTH 1024
 #define CANVAS_HEIGHT 768
-#define N 8// number of input image 
+
+#define fake_width CANVAS_WIDTH*2
+#define fake_height CANVAS_HEIGHT*2
+
+#define DIFF_X CANVAS_WIDTH/2 
+#define DIFF_Y CANVAS_HEIGHT/2 
+
+#define N 5// number of input image 
 
 using namespace cv;
 #define upAdjacent 100
@@ -17,9 +27,12 @@ using namespace cv;
 #define downAdjacent 102
 #define rightAdjacent 103
 
+
+
 class emotionData {
 	public:
-	Mat originImage  , stimulusMap;
+	Mat originImage  , stimulusMap ;
+	Mat rotateMask; // related to currentRect
 	vector<Mat> candidateROI;
 	vector <Rect> candidateROIRect;
 	Rect ShowRectInCandidateROI; // in candidate ROI
@@ -30,7 +43,11 @@ class emotionData {
 	Rect levelZeroRectinCanvas;
 	int layer;// not sure 
 	int level;
-	double visbleAreaRatio;
+	double visbleAreaRatio , angle;
+	Mat bigRotationROI, mask;
+	Rect boundingRect;
+	void rotate(double newAngle);
+	//void rotate(double angle);
 	/*!
 	0 : top left
 	1 : top right
@@ -62,6 +79,7 @@ class emotionData {
 	void updateCurrentRect();
 	Rect getAdjacentBlankArea(Mat& boolMap , int side);    // updated at 10:09 20140728 
 	void expand(Mat canvas, double thresholdOfNearBlankArea);
+	
 	/*
 		choose mlevel of candidateROI 
 		return the ratio of blocked area and  total candidateROI area  , t

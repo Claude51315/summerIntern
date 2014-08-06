@@ -1,47 +1,83 @@
-#include "emotionROI.h"
+﻿#include "emotionROI.h"
 
 double globalblockedRatio(emotionData src[]);
 void main()
 {
+
+	
+
 	time_t t = clock();
-	Mat canvas(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8UC3 , Scalar(0,0,0)),
-		boolMap(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(0)) , 
-		block(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(255)) ;
+	Mat canvas(fake_height   , fake_width , CV_8UC3 , Scalar(0,0,0)),
+		boolMap(fake_height   , fake_width , CV_8U , Scalar(0)) , 
+		block(fake_height   , fake_width , CV_8U , Scalar(255)) ;
 	emotionData src[N]; 
+	Rect canvasRect(DIFF_X , DIFF_Y , CANVAS_WIDTH , CANVAS_HEIGHT);
+	rectangle(canvas , canvasRect , Scalar(255,255,255));
+	
 	std::fstream  imageData;
 	imageData.open("emotionROI_value.txt", std::fstream::in);
 	if(!imageData.is_open())
 	{
 		std::cerr<<"cannot open file."<<std::endl;
-		 exit(1);
+		exit(1);
 	}	
-	randomSeedPoint(src, N, CANVAS_WIDTH, CANVAS_HEIGHT); // randomly choose seed point 
+	randomSeedPoint(src, N, fake_width, fake_height); // randomly choose seed point 
+	
+	
 	for(size_t i = 0 ; i< N ;++i)
 	{
 		readImage( imageData , src[i],i); // origin image , stimulus map , layer
 		src[i].initialize(i);
 	}
 	imageData.close();
+	namedWindow("sss" , CV_WINDOW_FREERATIO);
 	updateBoolMap(src , boolMap);
+	for(int i = 0 ; i< N ;++i)
+	{
+		std::cout<<src[i].boundingRect <<std::endl;
+	}
+
+	std::cout <<"www1" <<std::endl;
 	draw(src,canvas);
+	std::cout <<"ww2" <<std::endl;
+	
+	
 	for(int i = 0 ; i< N ; ++i)
 		src[i].updateVisbleAreaRatio(canvas);
+	for(int i = 0 ; i< N ; ++i)
+		std::cout << src[i].visbleAreaRatio <<std::endl;
+
 	std::cout << "==========================="<< std::endl;
+
 	imwrite("origin.jpg" , canvas);
-		for(int i = 0 ; i<N ; i++)
+	draw(src,canvas);
+	imshow("sss" ,canvas );
+	waitKey(0);
+	for(int i = 0 ; i< N ; ++i)
+	{
+		src[i].expand(canvas , 0.7);
+		src[i].rotate(0);
+		
+	}
+	draw(src,canvas);
+	imshow("sss" ,canvas );
+	waitKey(0);
+
+	
+	/*
+	for(int i = 0 ; i<N ; i++)
 	{
 		std::cout << src[i].LevelZeroROIBlockedRatio(canvas) <<std::endl;
 	}
+	
+	
 	int n = 0 ,qq = 0; 
 	bool vFlag = false ; 
 	int qqq = 0 ; 
 	srand(time(NULL));
-	imshow("tmp" , canvas);
-	waitKey(1);	
 	for(int i = 0 ; i< N ; i++)
-	{
 		globalRandomMove(src , i , canvas , boolMap);
-	}
+	
 	for(int i = 0 ;i < N; i++)
 	{
 		src[i].expand(canvas , 0.7);
@@ -50,10 +86,11 @@ void main()
 			src[i].updateVisbleAreaRatio(canvas);
 		updateBoolMap(src , boolMap);
 	}
+	
 	double mininumBlankAreaRatio = 1 - maxinumVisibleAreaRatio(src , canvas , boolMap);
 	mininumBlankAreaRatio = (mininumBlankAreaRatio < 0.0 ) ? 0.0 : mininumBlankAreaRatio ; 
-	//std::cout<<"mininumBlankAreaRatio = "<< mininumBlankAreaRatio <<std::endl;
-	//std::cout<<"globalBlankAreaRatio(boolMap) = "<< globalBlankAreaRatio(boolMap) <<std::endl;
+	std::cout<<"mininumBlankAreaRatio = "<< mininumBlankAreaRatio <<std::endl;
+	std::cout<<"globalBlankAreaRatio(boolMap) = "<< globalBlankAreaRatio(boolMap(canvasRect)) <<std::endl;
 	double thresholdMin =0.2 ,thresholdG = 0.3; 
 	if(N >=5 && N < 10)
 	{
@@ -66,7 +103,7 @@ void main()
 		thresholdMin =0;
 	}
 	int stop = 0 ;
-	while( ( mininumBlankAreaRatio > thresholdMin || globalBlankAreaRatio(boolMap) > thresholdG )    )
+	while( ( mininumBlankAreaRatio > thresholdMin || globalBlankAreaRatio(boolMap(canvasRect)) > thresholdG )    )
 	{
 		std::cout <<"stop = "<<stop++ << std::endl;
 		if(stop >=5)
@@ -106,7 +143,8 @@ void main()
 					localMove(src , canvas ,boolMap ,i , 1);
 				}
 			}
-			
+
+	
 			if(vFlag == true)
 				break;
 			draw(src , canvas);
@@ -137,31 +175,25 @@ void main()
 			mininumBlankAreaRatio = 1 - maxinumVisibleAreaRatio(src , canvas , boolMap);
 			mininumBlankAreaRatio = (mininumBlankAreaRatio < thresholdMin ) ? thresholdMin : mininumBlankAreaRatio ; 
 			std::cout<<"mininumBlankAreaRatio = "<< mininumBlankAreaRatio <<std::endl;
-			std::cout<<"globalBlankAreaRatio(boolMap) = "<< globalBlankAreaRatio(boolMap) <<std::endl;
+			std::cout<<"globalBlankAreaRatio(boolMap) = "<< globalBlankAreaRatio(boolMap(canvasRect)) <<std::endl;
 			if(mininumBlankAreaRatio <= thresholdMin )
 				break;
 		}
 	}	
 
-	/*for(int i = 0 ; i< N ; i++)
+	for(int i = 0 ; i< N ; i++)
 		if(src[i].LevelZeroROIBlockedRatio(canvas) > 0.1) //   && 
 			for(int j = i+1 ; j< N; j++)
 				if(j!=i)
 				{
 					if(switchable(src , canvas ,boolMap , i ,j ))
 					{
-						system("pause");
+						
 						break;
 					}
-				}*/
+				}
 
-	/*for(int i = 0 ; i< N ; i++)
-	{
-		localMove(src , canvas ,boolMap ,i);
-		imshow("tmp" , canvas);
-		waitKey(1);
-		out << canvas ;
-	}*/
+	
 	draw(src , canvas);
 	for(int i = 0 ; i< N ;i++)
 		src[i].updateVisbleAreaRatio(canvas);
@@ -175,7 +207,7 @@ void main()
 	{
 		std::cout << src[i].LevelZeroROIBlockedRatio(canvas) <<std::endl;
 	}
-	std::cout << "after : blank area ratio "<< globalBlankAreaRatio(boolMap)<< std::endl;
+	std::cout << "after : blank area ratio "<< globalBlankAreaRatio(boolMap(canvasRect))<< std::endl;
 	
 	
 	for(int i = 0 ; i< N ; i++)
@@ -190,12 +222,13 @@ void main()
 					}
 				}
 	//finalextension(src , canvas);
-	imshow("result" , canvas);
-	imshow("result_boolean" , boolMap);
-	imwrite("result.jpg" , canvas);
+	imshow("sss" , canvas);
+	imshow("result_boolean" , boolMap(canvasRect));
+	imshow("result" , canvas(canvasRect));
 	t = clock() - t ; 
 	std::cout<< t <<std::endl;
-	waitKey(0);
+	waitKey(0);*/
+	
 }
 double globalblockedRatio(emotionData src[])
 {
@@ -209,3 +242,4 @@ double globalblockedRatio(emotionData src[])
 	ans = blockedArea / allArea ;
 	return ans;
 }
+

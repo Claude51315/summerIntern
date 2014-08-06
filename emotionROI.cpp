@@ -54,13 +54,16 @@ void emotionData::initialize(int number)
 {
 	this->layer = number;
 	this->level = 0; // set level = 0 
-	updateCandidateROI(); 
+	updateCandidateROI(); 	
+	angle = 0;
+	rotate(angle);
 	updateCurrentRect(); // choose candidateROI[layer] 
 	updateCorners();  // update the remaining three corners 
-	
+
 } // revise
 void emotionData::updateVisbleAreaRatio(Mat& canvas)
 {
+
 	double k = currentRectAndCandidateROIAreaRatio();
 	double t = localBlockedAreaRatio(canvas,level);
 	visbleAreaRatio = k * (1-t);
@@ -93,10 +96,10 @@ void emotionData::updateCurrentRect()
 		range_y = candidateROI[level].rows + corners[0].y;
 		corners[0].y = 0;
 	}
-	if(corners[0].x+candidateROI[level].cols >= CANVAS_WIDTH -1 )
-			range_x = CANVAS_WIDTH-1-corners[0].x;
-	if(corners[0].y + candidateROI[level].rows >= CANVAS_HEIGHT -1)
-			range_y = CANVAS_HEIGHT-1-corners[0].y;
+	if(corners[0].x+candidateROI[level].cols >= CANVAS_WIDTH + DIFF_X -1 )
+		range_x = CANVAS_WIDTH + DIFF_X -1-corners[0].x;
+	if(corners[0].y + candidateROI[level].rows >= CANVAS_HEIGHT + DIFF_Y  -1)
+			range_y = CANVAS_HEIGHT + DIFF_Y -1-corners[0].y;
 	
 	currentRect = Rect(corners[0].x ,corners[0].y , range_x , range_y);
 	
@@ -147,10 +150,10 @@ Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 	case upAdjacent:
 		{
 			Rect tmpRect  = currentRect + Point(0 , - candidateROI[level].rows);
-			if(tmpRect.y < 0)
+			if(tmpRect.y < 0 + DIFF_Y)
 			{
-				tmpRect.height += tmpRect.y;
-				tmpRect.y = 0;
+				tmpRect.height = currentRect.y - DIFF_Y;
+				tmpRect.y = DIFF_Y;
 			}
 			return tmpRect;
 		}
@@ -159,9 +162,9 @@ Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 		{
 		
 			Rect tmpRect  = currentRect + Point(0 , candidateROI[level].rows);
-			if(tmpRect.y  + tmpRect.height >= CANVAS_HEIGHT-1)
+			if(tmpRect.y  + tmpRect.height >= CANVAS_HEIGHT + DIFF_Y -1)
 			{
-				tmpRect.height =    CANVAS_HEIGHT-1 - tmpRect.y ;
+				tmpRect.height =    CANVAS_HEIGHT + DIFF_Y -1 - tmpRect.y ;
 			}
 			return tmpRect;
 			break;
@@ -169,9 +172,9 @@ Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 		case rightAdjacent:
 		{
 			Rect tmpRect  = currentRect + Point(  candidateROI[level].cols , 0);
-			if(tmpRect.x  + tmpRect.width >= CANVAS_WIDTH-1)
+			if(tmpRect.x  + tmpRect.width >= CANVAS_WIDTH + DIFF_X-1)
 			{
-				tmpRect.width =    CANVAS_WIDTH-1 - tmpRect.x;
+				tmpRect.width =    CANVAS_WIDTH + DIFF_X-1 - tmpRect.x;
 				
 			}
 			return tmpRect;
@@ -180,10 +183,10 @@ Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 		case leftAdjacent:
 		{
 			Rect tmpRect  = currentRect + Point(- candidateROI[level].cols , 0);
-			if(tmpRect.x <=  0)
+			if(tmpRect.x <=  0 + DIFF_X)
 			{
-				tmpRect.width += tmpRect.x;
-				tmpRect.x = 0;
+				tmpRect.width = currentRect.x - DIFF_X;
+				tmpRect.x = DIFF_X;
 			}
 			return tmpRect;
 			break;
@@ -193,10 +196,10 @@ Rect emotionData::getAdjacentBlankArea(Mat& boolMap , int side)
 }
 bool emotionData::move(Mat &canvas, int deltaX , int deltaY)
 {
-	if( !( (deltaY + this->seed.y >= canvas.rows-1) || 
-			(deltaX + this->seed.x >= canvas.cols-1)|| 
-			(deltaY + this->seed.y + candidateROI[this->level].rows <= 1) ||
-			(deltaX + this->seed.x + candidateROI[this->level].cols <= 1)
+	if( !( (deltaY + this->seed.y >= CANVAS_HEIGHT + DIFF_Y-1) || 
+			(deltaX + this->seed.x >= CANVAS_WIDTH + DIFF_X-1)|| 
+			(deltaY + this->seed.y + candidateROI[this->level].rows <= DIFF_Y) ||
+			(deltaX + this->seed.x + candidateROI[this->level].cols <= DIFF_X)
 		)
 	)
 	{
@@ -210,13 +213,13 @@ bool emotionData::move(Mat &canvas, int deltaX , int deltaY)
 	updateCorners();
 	return 0;
 }
-double emotionData::localBlockedAreaRatio(Mat& canvas , int mlevel) //t 
+double emotionData::localBlockedAreaRatio(Mat& canvas , int mlevel) //t    qqqqq
 {
 	/*counting ratio with respect to area*/
 		
 		double output =0 , blocked_area = 0;
 		
-		Mat covered_current = canvas( currentRect).clone();
+		Mat covered_current = canvas(currentRect).clone();
 		Rect showRect(corners[0].x - seed.x,
 						  corners[0].y - seed.y,
 						  currentRect.width ,
@@ -241,7 +244,8 @@ double emotionData::localBlockedAreaRatio(Mat& canvas , int mlevel) //t
 		
 		return output;
 
-}
+}  
+//qqq
 double emotionData::blockedEmotionROIRatio(Mat canvas)
 {
 	double output =0 , blockedEmotionROI = 0 , totalEmotionROI=0 ;
@@ -277,7 +281,8 @@ double emotionData::blockedEmotionROIRatio(Mat canvas)
 
 
 
-}
+}  //qqq
+//qqq
 double emotionData::LevelZeroROIBlockedRatio(Mat& canvas)
 {
 	//std::cout <<"here in "<<std::endl;
@@ -290,27 +295,32 @@ double emotionData::LevelZeroROIBlockedRatio(Mat& canvas)
 		tmpy = candidateROIRect[0].y  - candidateROIRect[level].y ;
 	int lx = seed.x + tmpx ,ly = seed.y + tmpy;
 	int XonCandidateROI =0  ,YonCandidateROI =0 , widthOnCandidateROI = tmpWidth  , heightOnCandidateROI = tmpHeight;
-	if(lx < 0)
-		XonCandidateROI = -lx ; 
-	if(ly < 0)
-		YonCandidateROI = -ly ; 
-	if(lx +  tmpWidth > CANVAS_WIDTH)
-		widthOnCandidateROI = CANVAS_WIDTH - lx -1 ;
-	if(ly + tmpHeight > CANVAS_HEIGHT)
-		heightOnCandidateROI = CANVAS_HEIGHT - ly -1  ;
+	if(lx < DIFF_X)
+		XonCandidateROI = DIFF_X  -lx ; 
+	if(ly < DIFF_Y)
+		YonCandidateROI = DIFF_Y -ly ; 
+	if(lx +  tmpWidth > CANVAS_WIDTH + DIFF_X)
+		widthOnCandidateROI = CANVAS_WIDTH + DIFF_X- lx -1 ;
+	if(ly + tmpHeight > CANVAS_HEIGHT + DIFF_Y)
+		heightOnCandidateROI = CANVAS_HEIGHT + DIFF_Y- ly -1  ;
 	lx = (lx < 0) ? 0 : lx;
 	ly = (ly < 0) ? 0 : ly;
 	this->levelZeroRectinCanvas = Rect(lx,ly,widthOnCandidateROI,heightOnCandidateROI);
 	
-	if(widthOnCandidateROI <= 0 || heightOnCandidateROI <= 0 || lx > CANVAS_WIDTH || ly > CANVAS_HEIGHT)
+	if(widthOnCandidateROI <= 0 || heightOnCandidateROI <= 0 || lx > CANVAS_WIDTH +DIFF_X   || ly > CANVAS_HEIGHT  + DIFF_Y)
+	{
+		
 		return 1 ; 
-	
+	}
 	showOnCanvas =Rect(lx , ly , widthOnCandidateROI , heightOnCandidateROI);
 	
 	if(0 <= XonCandidateROI && 0 <= widthOnCandidateROI &&XonCandidateROI + widthOnCandidateROI <=tmpWidth && 0 <= heightOnCandidateROI && 0 <= heightOnCandidateROI  && YonCandidateROI + heightOnCandidateROI <= tmpHeight)
 		canvas(showOnCanvas).copyTo(tmpOnCanvas(Rect( XonCandidateROI,YonCandidateROI,widthOnCandidateROI,heightOnCandidateROI)));
 	else
+	{
+		
 		return 1;
+	}
 	
 	int nr= tmpOnCanvas.rows; // number of rows  
 	double blockArea = 0 ;
@@ -324,8 +334,55 @@ double emotionData::LevelZeroROIBlockedRatio(Mat& canvas)
 		  }
 	output = blockArea / (tmpWidth * tmpHeight);
 	return output;
-}
+} //qq
+//qqq
+void emotionData::rotate(double newAngle)
+{
+	
+	angle = newAngle;
+	
+	Mat roi = candidateROI[level].clone();
+//	std::cout << "roi .width " << roi.cols <<std::endl;
+//	std::cout << "roi .height " << roi.rows <<std::endl;
+	int h1 = roi.rows;
+	int w1 = roi.cols;
+	int h2 =  ceil( ceil( h1*cos(abs(angle)*PI/180))+ ceil (w1*sin(abs(angle)*PI/180))) + 2 ;
+	int w2 =  ceil( ceil( h1*sin(abs(angle)*PI/180))+ ceil (w1*cos(abs(angle)*PI/180))) + 2 ;
+	int range_x = std::max(w1,w2);
+	int range_y = std::max(h1,h2);
+	Mat tmp(Size(  range_x , range_y ) ,CV_8UC3 , Scalar(0,0,0));
+	//std::cout << "tmp .width " << tmp.cols <<std::endl;
+	//std::cout << "tmp .height " << tmp.rows <<std::endl;
+	roi.copyTo(tmp(Rect((tmp.cols-roi.cols)/2,(tmp.rows-roi.rows)/2,roi.cols,roi.rows)));
 
+	Point2f  pt(tmp.cols/2, tmp.rows/2);
+	Mat r = cv::getRotationMatrix2D(pt , angle , 1);
+	warpAffine(tmp, tmp, r, tmp.size());
+
+	//std::cout << "tmp .width " << tmp.cols <<std::endl;
+	//std::cout << "tmp .height " << tmp.rows <<std::endl;
+	
+	Rect www  = candidateROIRect[level];
+	//std::cout << "www = "<<www <<std::endl;
+	RotatedRect rRect(Point2f(  tmp.cols /2   , tmp.rows /2  ) , Size(www.width , www.height) ,-angle);
+	Rect brect = rRect.boundingRect();
+	Mat tmpmask = Mat::zeros(tmp.rows , tmp.cols, CV_8UC1);
+	Point2f verticesqq[4]; // convert point to point2f
+	rRect.points(verticesqq);
+	Point vertices[4];
+	vector<Point> contour;
+	for( int j = 0; j < 4; j++ )
+	{
+		vertices[j] = verticesqq[j];
+	}
+
+	fillConvexPoly(tmpmask , vertices , 4 ,Scalar(255));
+	mask = tmpmask.clone();
+	boundingRect = brect;
+	bigRotationROI = tmp.clone();
+
+}
+// rotate
 void switchLayer(emotionData& src1, emotionData& src2)
 {
 	std::swap(src1.layer,src2.layer);
@@ -416,8 +473,8 @@ void randomSeedPoint(emotionData src[], int numOfSource , int canvasWidth , int 
 		{
 			
 			int temp_seed_x = 0,temp_seed_y = 0;
-			temp_seed_x = (int)(rand()% canvasWidth);
-			temp_seed_y = (int)(rand()% canvasHeight); 
+			temp_seed_x = (int)(rand()% CANVAS_WIDTH + DIFF_X);
+			temp_seed_y = (int)(rand()% CANVAS_HEIGHT + DIFF_Y); 
 			if(check_src.at<uchar>(temp_seed_y,temp_seed_x)==0)
 			{
 				not_done =false;
@@ -428,6 +485,7 @@ void randomSeedPoint(emotionData src[], int numOfSource , int canvasWidth , int 
 		}
 	}
 }
+// qqq
 double resizeRatio_x (emotionData src[], int numOfSource , int canvasWidth)
 {
 	double resizeRatio_x = 0 ;
@@ -454,21 +512,53 @@ double resizeRatio_y (emotionData src[], int numOfSource , int canvasHeight)
 }
 double globalBlankAreaRatio(Mat &src)
 {
+	
 	double output=0, src_score=0;
       int nr= src.rows; // number of rows  
+	  
       for (int j=0; j<nr; j++) {  
           uchar* data= src.ptr<uchar>(j);  
-          for (int i=0; i<src.cols * src.channels(); i=i+ src.channels()) {  
-            if(data[i]== 0)
+          for (int i=0 ; i<(src.cols ) * src.channels(); i=i+ src.channels()) {  
+			  
+			  if(data[i]==0)
+			  {
 				src_score++;
-            } // end of row                   
+				
+			  }
+			 } // end of row                   
       }  
-	  output = (double)src_score/(src.cols*src.rows);
+	  
+	  output = (double)src_score/(src.rows*src.cols);
 	  return output;
 }
 void draw(emotionData *src , Mat &canvas)
 {
-	canvas =  Mat(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8UC3 , Scalar(0,0,0)).clone();
+	canvas.setTo(0);
+	int *order = new int[N] ;
+	for(int i = 0; i <N ; i++)
+		order[i] = i;
+	for(int i = 0; i <N ; i++)
+	{
+		for(int j = i+1; j < N ; j++)
+		{
+			if(src[i].layer > src[j].layer)
+				std::swap(order[i],order[j]);
+		}
+	}
+
+	for(int i = 0 ; i< N ;++i)
+	{
+		emotionData *p ;
+		p = &src[order[i]];
+	    p->bigRotationROI(p->boundingRect).copyTo(canvas(p->boundingRect + Point(  p->seed.x-p->boundingRect.x + p->candidateROIRect[p->level].width/2 - p->bigRotationROI.cols/2 ,
+								 p->seed.y-p->boundingRect.y + p->candidateROIRect[p->level].height/2 - p->bigRotationROI.rows/2 )) , p->mask(p->boundingRect));
+		
+		
+		
+	}
+
+
+	/*canvas =  Mat(fake_height   , fake_width , CV_8UC3 , Scalar(0,0,0)).clone();
 	int *order = new int[N] ;
 	for(int i = 0; i <N ; i++)
 		order[i] = i;
@@ -484,12 +574,13 @@ void draw(emotionData *src , Mat &canvas)
 	for(size_t i = 0 ; i< N ;++i)
 	{
 		int range_x =src[order[i]].currentRect.width, range_y =src[order[i]].currentRect.height;
-		
-		
+
+
 		if(src[order[i]].ShowRectInCandidateROI.width !=0 && src[order[i]].ShowRectInCandidateROI.height!=0)
 			src[order[i]].candidateROI[src[order[i]].level](src[order[i]].ShowRectInCandidateROI).copyTo(canvas(Rect(src[order[i]].currentRect)));
-	}
+	}*/
 }
+// qqq
 bool isOverlapped(Rect R1, Rect R2)
 {
 	Rect check = overlappedArea( R1,  R2);
@@ -540,12 +631,12 @@ double totalBlockedAreaRatio(emotionData *src , Mat canvas)
 	totalBlockedArea = totalBlockedArea/N ;
 	return totalBlockedArea;
 }
-
+//qqq
 void updateBoolMap(emotionData *src , Mat& outputBoolMap)
 {
 	outputBoolMap.release();
-	Mat tmpBoolMap(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(0)) , 
-	block(CANVAS_HEIGHT   , CANVAS_WIDTH , CV_8U , Scalar(255)) ;
+	Mat tmpBoolMap(fake_height   , fake_width , CV_8U , Scalar(0)) , 
+	block(fake_height   , fake_width , CV_8U , Scalar(255)) ;
 	for(int i = 0 ; i< N ;++i)
 	{
 		if(src[i].currentRect.width !=0 && src[i].currentRect.height!=0)
@@ -557,7 +648,7 @@ void updateBoolMap(emotionData *src , Mat& outputBoolMap)
 }
 bool rectIsValid(Rect tmpRect)
 {
-	if(tmpRect.height >0 && tmpRect.width > 0 && tmpRect.x >= 0 && tmpRect.x <= CANVAS_WIDTH  && tmpRect.y >=0 && tmpRect.y<=CANVAS_HEIGHT) 
+	if(tmpRect.height >0 && tmpRect.width > 0 && tmpRect.x >=DIFF_X && tmpRect.x <= CANVAS_WIDTH  + DIFF_X  && tmpRect.y >=DIFF_Y && tmpRect.y<=CANVAS_HEIGHT + DIFF_Y) 
 		return true;
 	else
 		return false;
@@ -592,11 +683,15 @@ bool globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap)
 	int minScore_x=0, minScore_y=0;
 	double Score=0.4f;
 	bool goodFlag = 0;
-	for(int i = 0; i < CANVAS_WIDTH; i=i+ distance_x/2)
+	for(int i = DIFF_X ; i < CANVAS_WIDTH + DIFF_X; i=i+ distance_x/2)
 	{
-		for(int j = 0; j < CANVAS_HEIGHT; j = j+distance_y/2)
+		for(int j = DIFF_Y; j < CANVAS_HEIGHT + DIFF_Y; j = j+distance_y/2)
 			{	
-				if(i+distance_x <temp.cols && j+distance_y <temp.rows)
+
+				
+				rectangle(temp,Rect(i,j,distance_x,distance_y),Scalar(0,0,255));
+				
+				if(i+distance_x <temp.cols - DIFF_X && j+distance_y <temp.rows- DIFF_Y)
 				if( globalBlankAreaRatio(temp(Rect(i,j,distance_x,distance_y))) >= Score)
 				{
 					minScore_x = i;
@@ -618,10 +713,10 @@ bool globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap)
 		}
 	}	
 		
-		for(int i = CANVAS_WIDTH-1; i >= 0 ; i=i- distance_x/2)
-		for(int j = CANVAS_HEIGHT-1 ; j >=0 ; j = j- distance_y/2)
+		for(int i = CANVAS_WIDTH+ DIFF_X -1; i >=  DIFF_X  ; i=i- distance_x/2)
+		for(int j = CANVAS_HEIGHT + DIFF_Y -1 ; j >= DIFF_Y ; j = j- distance_y/2)
 			{	
-				if(i+distance_x <temp.cols && j+distance_y <temp.rows)
+				if(i+distance_x <temp.cols - DIFF_X && j+distance_y <temp.rows- DIFF_Y)
 				if( globalBlankAreaRatio(temp(Rect(i,j,distance_x,distance_y))) >= Score)
 				{
 					minScore_x = i;
@@ -635,9 +730,11 @@ bool globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap)
 				}
 			}
 			
-	output.x =  minScore_x + rand()%distance_x/16 ; 
-	output.y =  minScore_y +rand()%distance_y/16;
-	int dx = output.x-src[n].corners[0].x, dy = output.y-src[n].corners[0].y;
+	output.x =  minScore_x + rand()%(distance_x/16 ); 
+	output.y =  minScore_y +rand()%(distance_y/16);
+	int dx = output.x-src[n].corners[0].x, dy = output.y - src[n].corners[0].y;
+	
+	
 	if(src[n].move(canvas,dx ,dy))
 		goodFlag =  1;
 	else
@@ -649,8 +746,11 @@ bool globalRandomMove(emotionData *src ,int n, Mat& canvas , Mat& boolMap)
 	return (goodFlag) ? 1 : 0 ;
 
 }  // revised
+//qqq
 double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number ,int mode)
 {
+
+	Rect canvasRect(DIFF_X , DIFF_Y , CANVAS_WIDTH , CANVAS_HEIGHT);
 	draw(src , canvas);
 	updateBoolMap(src ,boolMap);
 	for(int i = 0 ; i< N ; ++i)
@@ -676,7 +776,7 @@ double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number ,int
 				p = &src[number];
 				side =100+ rand()%4; 
 				Rect tmpRect = p->getAdjacentBlankArea(boolMap,side);
-				curGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap);
+				curGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap(canvasRect));
 				curLocalVisbleAreaRatio = p->visbleAreaRatio;
 				curLevelZeroBlockedROIRatio = p->LevelZeroROIBlockedRatio(canvas);
 				curOtherLevelZeroBlockedROIRatioSum = otherLevelZeroBlockedAreaSum(src ,canvas, number);
@@ -707,7 +807,7 @@ double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number ,int
 						draw(src , canvas);
 						for(int i = 0 ; i<N;i++)
 							src[i].updateVisbleAreaRatio(canvas);
-						nextGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap);
+						nextGlobalBlankAreaRatio = globalBlankAreaRatio(boolMap(canvasRect));
 						nextLocalVisbleAreaRatio = p->visbleAreaRatio;
 						nextLevelZeroBlockedROIRatio = p->LevelZeroROIBlockedRatio(canvas);
 						nextOtherLevelZeroBlockedROIRatioSum = otherLevelZeroBlockedAreaSum(src ,canvas, number);
@@ -777,8 +877,9 @@ double localMove(emotionData *src , Mat& canvas , Mat& boolMap , int number ,int
 	for(int i = 0 ; i<N;i++)
 		src[i].updateVisbleAreaRatio(canvas);
 	
-	return globalBlankAreaRatio(boolMap);
+	return globalBlankAreaRatio(boolMap(canvasRect));
 }
+//qqq
 double adjacentAreaBlankRatio(Mat& boolMap)
 {
 	return globalBlankAreaRatio(boolMap);
@@ -838,7 +939,7 @@ int mindy(int side)
 }
 double maxinumVisibleAreaRatio(emotionData *src , Mat& canvas , Mat& boolMap)
 {
-	double canvasArea = canvas.cols * canvas.rows; 
+	double canvasArea = CANVAS_WIDTH * CANVAS_HEIGHT; 
 	double tmp = 0 ;
 	emotionData *p;
 	for(int i = 0 ;i<N ;  ++i)
@@ -939,6 +1040,7 @@ void finalextension(emotionData *src , Mat &canvas)
 	for(int i = 0 ; i< N ;++i)
 	{
 		Mat copyCanvas1 = canvas.clone();
+
 		if(src[order[i]].finalRectInSrc.width !=0 && src[order[i]].finalRectInSrc.height!=0)
 			src[order[i]].originImage(src[order[i]].finalRectInSrc).copyTo(canvas(Rect(src[order[i]].finalRectInCanvas)));
 		Mat copyCanvas2 = canvas.clone();
