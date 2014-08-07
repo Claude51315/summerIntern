@@ -8,6 +8,7 @@
 #include<time.h>
 #include<cmath>
 #include <algorithm>
+
 #define PI 3.14159
 
 #define CANVAS_WIDTH 1024
@@ -19,7 +20,7 @@
 #define DIFF_X CANVAS_WIDTH/2 
 #define DIFF_Y CANVAS_HEIGHT/2 
 
-#define N 5// number of input image 
+#define N 8// number of input image 
 
 using namespace cv;
 #define upAdjacent 100
@@ -32,7 +33,7 @@ using namespace cv;
 class emotionData {
 	public:
 	Mat originImage  , stimulusMap ;
-	Mat rotateMask; // related to currentRect
+	
 	vector<Mat> candidateROI;
 	vector <Rect> candidateROIRect;
 	Rect ShowRectInCandidateROI; // in candidate ROI
@@ -44,9 +45,16 @@ class emotionData {
 	int layer;// not sure 
 	int level;
 	double visbleAreaRatio , angle;
-	Mat bigRotationROI, mask;
+
+	Mat bigRotationROI, mask ;
+	Mat levelZeroBigRotationROI, levelZeroMask ;
 	Rect boundingRect;
+	Rect levelZeroBoundingRect;
+	/*
+		angle > 0 , counterclockwise
+	*/
 	void rotate(double newAngle);
+	void rotateWithUpdate(double newAngle);
 	//void rotate(double angle);
 	/*!
 	0 : top left
@@ -54,12 +62,12 @@ class emotionData {
 	2 : bottom left
 	3 : bottom right
 	*/
-	Point seed , corners[4];
+	Point seed , corners[4] ,center;
 	double emotionROI_ratio(Mat stimuiusMap,int min_x, int min_y, int max_x, int max_y);	
 	/*
 		move the currentRect and update seed point , corners 
 	*/
-	bool move(Mat &canvas , int deltaX , int deltaY);
+	bool move( int deltaX , int deltaY);
 	/*
 		initialize the class members
 		level 
@@ -68,7 +76,7 @@ class emotionData {
 		updateCorners();  // update the remaining three corners 
 	*/
 	void initialize(int number);
-	void updateVisbleAreaRatio(Mat& canvas);
+	void updateVisbleAreaRatio(int index , Mat& boolMap);
 	void updateCandidateROI();	
 	/*need CurrentRect to be correct ; */
 	void updateCorners();
@@ -77,8 +85,8 @@ class emotionData {
 		border detection !
 	*/
 	void updateCurrentRect();
-	Rect getAdjacentBlankArea(Mat& boolMap , int side);    // updated at 10:09 20140728 
-	void expand(Mat canvas, double thresholdOfNearBlankArea);
+	Rect getAdjacentBlankArea( int side);    // updated at 10:09 20140728 
+	void expand();
 	
 	/*
 		choose mlevel of candidateROI 
@@ -93,7 +101,7 @@ class emotionData {
 	double blockedEmotionROIRatio(Mat canvas); // with respect to 
 	double nth_LevelBlockedEmotionROIRatio(Mat& canvas , int level);
 
-	double LevelZeroROIBlockedRatio(Mat& canvas);
+	double LevelZeroROIBlockedRatio(int index , Mat& boolMap);
 };
 /*!
 	randomly assign a point to seed point ,i.e. top left corner to all input images.
